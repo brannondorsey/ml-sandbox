@@ -22,8 +22,8 @@ n_classes = 10
 dropout = 0.75 # dropout probability value
 
 # placeholders are gateways into our computation graph
-x = tf.placeholder(tf.float32, [None, n_input]) # image
-y = tf.placeholder(tf.float32, [None, n_classes]) # label
+x = tf.placeholder(tf.float32, [None, n_input], name='InputData') # image
+y = tf.placeholder(tf.float32, [None, n_classes], name='LabelData') # label
 keep_prob = tf.placeholder(tf.float32) # dropout
 
 def conv2d(x, W, b, strides=1):
@@ -58,6 +58,27 @@ def conv_net(x, weights, biases, dropout):
 	# output
 	out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
 	return out
+
+def variable_summaries(var):
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    tf.summary.scalar('loss', loss)
+    with tf.name_scope('stddev'):
+      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)
+
+def init_tensorboard_summaries(session):
+	# Merge all the summaries and write them out to /tmp/mnist_logs (by default)
+	merged = tf.summary.merge_all()
+	train_writer = tf.train.SummaryWriter('/tmp/mnist/train', session.graph)
+	test_writer = tf.train.SummaryWriter('/tmp/mnist/test')
+	return train_writer, test_writer
+
 
 # create our weights
 weights = {
@@ -96,9 +117,12 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 init = tf.global_variables_initializer()
 
 sess_config=tf.ConfigProto(log_device_placement=True)
+
 # launch the computation graph
 with tf.Session() as sess:
 	sess.run(init)
+	train_writer, test_writer = init_tensorboard_summaries(sess)
+
 	step = 1
 	# keep training until max iterations
 	while step * batch_size < training_iters:
@@ -113,6 +137,7 @@ with tf.Session() as sess:
 			print("Iter " + str(step*batch_size) + ", Minibatch Loss= " + \
 				"{:.6f}".format(loss) + ", Training Accuracy= " + \
 				"{:.5f}".format(acc))
+			train_writer.add_summary(loss, step)
 		
 		step += 1
 
